@@ -1,0 +1,37 @@
+# Builds the toybox-static package from this fork's sond branch against the pinned musl and
+# publishes it to dist.sond.dev. Generated from fredyk/sond-distro-pkg ci/forks.
+name: sond package
+
+on:
+  push:
+    branches: [sond]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: build
+        uses: fredyk/sond-build-action@v1
+        with:
+          name: toybox-static
+          version: 0.8.15
+          license: 0BSD
+          upstream: github.com/landley/toybox@a57b091d05ec366dcd4dd737784c03761cb6a4b1
+          license-files: LICENSE
+          build: |
+            . "$SOND_DISTRO_PKG/toolchain/common.sh"
+            bash "$SOND_DISTRO_PKG/toolchain/build-toybox.sh" "$PWD" "$RUNNER_TEMP/toybox-build"
+            install -D -m 0755 "$RUNNER_TEMP/toybox-build/tree/toybox" "$SOND_PAYLOAD/bin/toybox"
+            for a in $TOYBOX_COMMANDS; do ln -s toybox "$SOND_PAYLOAD/bin/$a"; done
+      - uses: fredyk/sond-publish-action@v1
+        with:
+          bundle: ${{ steps.build.outputs.bundle }}
+          token: ${{ secrets.SOND_PUBLISH_TOKEN }}
+          signing-key: ${{ secrets.SOND_SIGNING_KEY }}
